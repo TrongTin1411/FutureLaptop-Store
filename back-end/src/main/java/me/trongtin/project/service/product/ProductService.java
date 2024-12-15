@@ -54,9 +54,11 @@ public class ProductService implements IProductService {
     }
 
     @Override
-    public Product getByName(String name) {
-        return productRepository.findByNameContaining(name)
-                .orElseThrow(() -> new ResourceNotFoundException("Product name " + name + " not found"));
+    public List<Product> getByName(String name) {
+        List<Product> products = productRepository.findByNameContainingIgnoreCase(name);
+        if (products.isEmpty())
+            throw new ResourceNotFoundException("No products found containing name " + name);
+        return products;
     }
 
     @Override
@@ -66,15 +68,17 @@ public class ProductService implements IProductService {
 
     public ProductDTO mapper(Product product) {
         ProductDTO productDto = new ProductDTO();
+        productDto.setId(product.getId());
         productDto.setName(product.getName());
         productDto.setBrand(product.getBrand());
         productDto.setPrice(product.getPrice());
         productDto.setInventory(product.getInventory());
         productDto.setDescription(product.getDescription());
         productDto.setCategory(product.getCategory().getName());
-        productDto.setImages(product.getImages().stream()
-                .map(image -> new ImageDTO(image.getFileName(), image.getDownloadUrl()))
-                .toList());
+        productDto.setAvailable(product.isAvailable());
+//        productDto.setImages(product.getImages().stream()
+//                .map(image -> new ImageDTO(image.getFileName(), image.getDownloadUrl()))
+//                .toList());
         return productDto;
     }
 
@@ -85,7 +89,8 @@ public class ProductService implements IProductService {
         existingProduct.setInventory(newProduct.getInventory());
         existingProduct.setDescription(newProduct.getDescription());
         existingProduct.setCategory(newProduct.getCategory());
-        existingProduct.setImages(newProduct.getImages());
+        existingProduct.setAvailable(newProduct.isAvailable());
+//        existingProduct.setImages(newProduct.getImages());
         return existingProduct;
     }
 }

@@ -5,8 +5,10 @@ import me.trongtin.project.entity.Product;
 import me.trongtin.project.service.ICrudService;
 import me.trongtin.project.service.MapperService;
 
+import java.util.List;
+
 public interface IProductService extends ICrudService<Product, Long>, MapperService<Product, ProductDTO> {
 
-    Product getByName(String name);
+    List<Product> getByName(String name);
 
 }
