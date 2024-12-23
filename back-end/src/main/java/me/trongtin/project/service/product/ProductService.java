@@ -5,13 +5,16 @@ import me.trongtin.project.dto.ImageDTO;
 import me.trongtin.project.dto.ProductDTO;
 import me.trongtin.project.entity.Category;
 import me.trongtin.project.entity.Product;
+import me.trongtin.project.exception.AlreadyExistsException;
 import me.trongtin.project.exception.ResourceNotFoundException;
 import me.trongtin.project.repository.CategoryRepository;
+import me.trongtin.project.repository.ImageRepository;
 import me.trongtin.project.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.List;
+import java.util.Optional;
 
 @CrossOrigin("*")
 @Service
@@ -20,16 +23,23 @@ public class ProductService implements IProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final ImageRepository imageRepository;
 
     @Override
     public Product add(Product product) {
-        Category category = categoryRepository.findByName(product.getCategory().getName())
-                .orElseGet(() -> {
-                    Category newCategory = new Category(product.getCategory().getName());
-                    return categoryRepository.save(newCategory);
-                });
-        product.setCategory(category);
-        return productRepository.save(product);
+        productRepository.findByName(product.getName())
+            .ifPresentOrElse(p -> {
+                throw new AlreadyExistsException("Product id " + product.getId() + " already exists");
+            }, () -> {
+                Category category = categoryRepository.findByName(product.getCategory().getName())
+                    .orElseGet(() -> {
+                        Category newCategory = new Category(product.getCategory().getName());
+                        return categoryRepository.save(newCategory);
+                    });
+                product.setCategory(category);
+                productRepository.save(product);
+            });
+        return product;
     }
 
     @Override
@@ -66,22 +76,6 @@ public class ProductService implements IProductService {
         return productRepository.findAll();
     }
 
-    public ProductDTO mapper(Product product) {
-        ProductDTO productDto = new ProductDTO();
-        productDto.setId(product.getId());
-        productDto.setName(product.getName());
-        productDto.setBrand(product.getBrand());
-        productDto.setPrice(product.getPrice());
-        productDto.setInventory(product.getInventory());
-        productDto.setDescription(product.getDescription());
-        productDto.setCategory(product.getCategory().getName());
-        productDto.setAvailable(product.isAvailable());
-//        productDto.setImages(product.getImages().stream()
-//                .map(image -> new ImageDTO(image.getFileName(), image.getDownloadUrl()))
-//                .toList());
-        return productDto;
-    }
-
     private Product updateExistingProduct(Product existingProduct, Product newProduct) {
         existingProduct.setName(newProduct.getName());
         existingProduct.setBrand(newProduct.getBrand());
@@ -90,7 +84,21 @@ public class ProductService implements IProductService {
         existingProduct.setDescription(newProduct.getDescription());
         existingProduct.setCategory(newProduct.getCategory());
         existingProduct.setAvailable(newProduct.isAvailable());
-//        existingProduct.setImages(newProduct.getImages());
+        existingProduct.setImages(newProduct.getImages());
         return existingProduct;
+    }
+
+    public ProductDTO mapper(Product product) {
+        return ProductDTO.builder().
+                id(product.getId()).
+                name(product.getName()).
+                brand(product.getBrand()).
+                price(product.getPrice()).
+                category(product.getCategory().getName()).
+                inventory(product.getInventory()).
+                description(product.getDescription()).
+                available(product.isAvailable()).
+                images(imageRepository.getImageDTOByProductId(product.getId())).
+                build();
     }
 }
