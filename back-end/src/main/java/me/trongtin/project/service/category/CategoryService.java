@@ -1,10 +1,12 @@
 package me.trongtin.project.service.category;
 
 import lombok.RequiredArgsConstructor;
+import me.trongtin.project.dto.CategoryDTO;
 import me.trongtin.project.entity.Category;
 import me.trongtin.project.exception.AlreadyExistsException;
 import me.trongtin.project.exception.ResourceNotFoundException;
 import me.trongtin.project.repository.CategoryRepository;
+import me.trongtin.project.service.product.IProductService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,13 +17,15 @@ import java.util.Optional;
 public class CategoryService implements ICategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final IProductService productService;
 
     @Override
     public Category add(Category category) {
-        return Optional.of(category)
-                .filter(c -> !categoryRepository.existsByName(category.getName()))
-                .map(categoryRepository::save)
-                .orElseThrow(() -> new AlreadyExistsException("Category id " + category.getId() + " already exists"));
+        Optional<Category> oCategory = categoryRepository.findByName(category.getName());
+        if (oCategory.isPresent()) {
+            throw new AlreadyExistsException("Category name " + category.getName() + " already exists");
+        }
+        return categoryRepository.save(category);
     }
 
     @Override
@@ -57,5 +61,14 @@ public class CategoryService implements ICategoryService {
                 .ifPresentOrElse(categoryRepository::delete, () -> {
                     throw new ResourceNotFoundException("Category id " + id + " not found");
                 });
+    }
+
+    @Override
+    public CategoryDTO mapper(Category category) {
+        return CategoryDTO.builder()
+                .id(category.getId())
+                .name(category.getName())
+                .products(category.getProducts().stream().map(productService::mapper).toList())
+                .build();
     }
 }
